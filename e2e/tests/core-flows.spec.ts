@@ -30,7 +30,7 @@ test("doz kaydı eklenir, detayı açılır ve silinir", async ({ page }) => {
   await page.getByRole("button", { name: "Kaydı sil" }).click();
   await expect(page.getByRole("alertdialog")).toContainText("Doz kaydı silinsin mi?");
   await page.getByRole("alertdialog").getByRole("button", { name: "Kaydı sil" }).click();
-  await expect(page.getByText("Bu tarih ve filtre için kayıt yok.")).toBeVisible();
+  await expect(page.getByText("Henüz kayıt yok")).toBeVisible();
 });
 
 test("günlük kayıt eklenir ve düzenlenir", async ({ page }) => {
