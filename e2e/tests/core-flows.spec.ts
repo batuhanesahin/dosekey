@@ -35,12 +35,11 @@ test("doz kaydı eklenir, detayı açılır ve silinir", async ({ page }) => {
 
 test("günlük kayıt eklenir ve düzenlenir", async ({ page }) => {
   await page.getByRole("button", { name: "Günlük kayıt ekle" }).click();
-  await page.getByRole("button", { name: "4", exact: true }).click();
-  await page.getByRole("button", { name: "Devam" }).click();
-  await page.getByRole("button", { name: "3", exact: true }).click();
-  await page.getByRole("button", { name: "Devam" }).click();
+  const appetite = page.getByRole("group", { name: "Bugün iştahın nasıldı?" });
+  const energy = page.getByRole("group", { name: "Bugün enerjin nasıldı?" });
+  await appetite.getByRole("button", { name: "4", exact: true }).click();
+  await energy.getByRole("button", { name: "3", exact: true }).click();
   await page.getByRole("button", { name: "Yok", exact: true }).click();
-  await page.getByRole("button", { name: "Devam" }).click();
   await page.locator(".weight-input input").fill("101.5");
   await page.getByRole("button", { name: "Kaydı tamamla" }).click();
 
@@ -50,10 +49,7 @@ test("günlük kayıt eklenir ve düzenlenir", async ({ page }) => {
   await expect(page.getByRole("dialog").getByText("101,5 kg", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Kaydı düzenle" }).click();
-  await page.getByRole("button", { name: "5", exact: true }).click();
-  await page.getByRole("button", { name: "Devam" }).click();
-  await page.getByRole("button", { name: "Devam" }).click();
-  await page.getByRole("button", { name: "Devam" }).click();
+  await appetite.getByRole("button", { name: "5", exact: true }).click();
   await page.getByRole("button", { name: "Değişiklikleri kaydet" }).click();
 
   await page.getByRole("button", { name: /Günlük kayıt/ }).click();
