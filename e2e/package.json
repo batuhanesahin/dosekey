@@ -1,0 +1,23 @@
+{
+  "name": "dosekey-e2e-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:android": "playwright test --project=android-chrome",
+    "test:headed": "playwright test --project=android-chrome --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "test:all": "playwright test",
+    "test:desktop": "playwright test --project=desktop-chrome",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "pretest": "npm run typecheck"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^26.6.1",
+    "dotenv": "^17.2.2",
+    "typescript": "^5.9.2"
+  }
+}
