@@ -7,8 +7,9 @@ android {
         applicationId "com.batuhanegesahin.dosekey"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Her GitHub derlemesi bir öncekinden yüksek sürüm alır; telefon yeni APK'yı güncelleme olarak tanır.
+        versionCode((System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger())
+        versionName("1.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0"))
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +17,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Sabit imza: Android bir uygulamayı ancak aynı imzayla günceller. Anahtar depoda değil,
+    // GitHub Secrets'ta durur ve derleme sırasında ortam değişkenleriyle gelir.
+    signingConfigs {
+        release {
+            def keystorePath = System.getenv("DOSEKEY_KEYSTORE")
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("DOSEKEY_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("DOSEKEY_KEY_ALIAS")
+                keyPassword System.getenv("DOSEKEY_KEYSTORE_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (System.getenv("DOSEKEY_KEYSTORE")) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

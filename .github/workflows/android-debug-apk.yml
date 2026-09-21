@@ -1,4 +1,4 @@
-name: Android Debug APK
+name: Android APK
 
 on:
   workflow_dispatch:
@@ -40,14 +40,28 @@ jobs:
       - name: Build mobile app
         run: pnpm android:sync
 
-      - name: Build APK
+      - name: Prepare signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 secret tanimli degil. Sabit imza olmadan uretilen APK eskisinin uzerine kurulamaz."
+            exit 1
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/dosekey.keystore"
+
+      - name: Build signed APK
         working-directory: android
+        env:
+          DOSEKEY_KEYSTORE: ${{ runner.temp }}/dosekey.keystore
+          DOSEKEY_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          DOSEKEY_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleRelease --stacktrace
 
       - uses: actions/upload-artifact@v4
         with:
-          name: DoseKey-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: DoseKey-${{ github.run_number }}
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error

@@ -14,7 +14,8 @@
     "db:generate": "drizzle-kit generate",
     "mobile:build": "vite build --config vite.mobile.config.ts",
     "android:sync": "pnpm mobile:build && cap sync android",
-    "android:open": "cap open android"
+    "android:open": "cap open android",
+    "preview:phone": "vite build --config vite.mobile.config.ts && vite preview --config vite.mobile.config.ts --host --port 4173"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
