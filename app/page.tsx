@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, ArrowLeft, BarChart3, Bell, CalendarDays, Check,
   ChevronRight, Clock3, FileText, Filter, History, Home, Moon,
-  Pencil, Pill, Plus, RotateCw, Scale, Sun, Syringe, Trash2, UserRound, X, Zap
+  Pencil, Pill, Plus, RotateCw, Scale, Sun, Trash2, UserRound, X, Zap
 } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -131,15 +131,15 @@ function Progress({data,active,filter,setFilter,doses,select}:{data:Store;active
  const from=range?addDays(dateKey(),-range+1):"0000-01-01";
  const entries=data.dailies.filter(d=>d.date>=from&&d.date<=dateKey()&&(!period||(d.date>=period.start&&(!period.end||d.date<=period.end)))).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
  const weights=entries.filter(d=>d.weight!==undefined).map(d=>({date:pretty(d.date).replace(/ \d{4}$/, ""),value:d.weight!}));
- const average=(key:"appetite"|"energy")=>dailyAverage(entries,key);
+ // Bu ekrandaki her şey seçili aralığı anlatıyor; ortalama da aralığın olmalı.
+ const rangeAverage=(key:"appetite"|"energy")=>{const values=entries.filter(d=>Number.isFinite(d[key]));return values.length?(values.reduce((sum,d)=>sum+d[key],0)/values.length).toLocaleString("tr-TR",{maximumFractionDigits:1}):"—"};
  const symptoms=Array.from(new Set(entries.flatMap(d=>d.symptoms).filter(s=>s!=="Yok")));
  const usage=sortedDoses(doses.filter(d=>d.date>=from&&d.date<=dateKey()));
  return <div className="page progress-page"><Header title="İlerleme"/><Select value={filter} onValueChange={setFilter}><SelectTrigger className="period-select"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="active">{active.dose} / {active.amount} · Aktif dönem</SelectItem>{data.periods.filter(p=>!p.active).map(p=><SelectItem value={String(p.id)} key={p.id}>{p.dose} / {p.amount}</SelectItem>)}<SelectItem value="all">Tüm dönemler</SelectItem></SelectContent></Select>
   <div className="range-tabs">{[[28,"4 hafta"],[56,"8 hafta"],[0,"Tümü"]].map(([n,label])=><button key={n} className={range===n?"active":""} onClick={()=>setRange(Number(n))}>{label}</button>)}</div>
   <section id="weight" tabIndex={-1} className="progress-card metric-history-card"><button className="metric-history-trigger" aria-label="Kilo kayıtlarını gör" aria-haspopup="dialog" onClick={e=>openMetric("weight",e)}/><CardTitle icon={Scale} title="Kilo"/><ChevronRight className="metric-history-chevron" aria-hidden="true"/>{weights.length?<><div className="weight-head"><div><b>{weights[0].value.toLocaleString("tr-TR")} kg</b><small>{weights[0].date}</small></div><div><strong>{(weights.at(-1)!.value-weights[0].value).toLocaleString("tr-TR",{maximumFractionDigits:1})} kg değişim</strong><b>{weights.at(-1)!.value.toLocaleString("tr-TR")} kg</b><small>{weights.at(-1)!.date}</small></div></div><BigChart points={weights}/></>:<p className="empty-state">Bu aralıkta kilo kaydı yok.</p>}</section>
-  <div className="mini-grid"><MiniCard onOpen={e=>openMetric("appetite",e)} id="appetite" title="İştah" value={"Bugün ort. "+average("appetite")+" / 5"} icon={Activity} data={entries.map((d,i)=>({x:i,v:d.appetite}))}/><MiniCard onOpen={e=>openMetric("energy",e)} id="energy" title="Enerji" value={"Bugün ort. "+average("energy")+" / 5"} icon={Zap} data={entries.map((d,i)=>({x:i,v:d.energy}))}/></div>
+  <div className="mini-grid"><MiniCard onOpen={e=>openMetric("appetite",e)} id="appetite" title="İştah" value={"Ortalama "+rangeAverage("appetite")+" / 5"} icon={Activity} data={entries.map((d,i)=>({x:i,v:d.appetite}))}/><MiniCard onOpen={e=>openMetric("energy",e)} id="energy" title="Enerji" value={"Ortalama "+rangeAverage("energy")+" / 5"} icon={Zap} data={entries.map((d,i)=>({x:i,v:d.energy}))}/></div>
   <section id="symptoms" className="progress-card metric-history-card"><button className="metric-history-trigger" aria-label="Belirti kayıtlarını gör" aria-haspopup="dialog" onClick={e=>openMetric("symptoms",e)}/><CardTitle icon={Activity} title="Belirtiler"/><ChevronRight className="metric-history-chevron" aria-hidden="true"/>{symptoms.length?symptoms.map(s=><Symptom key={s} label={s} n={entries.filter(d=>d.symptoms.includes(s)).length}/>):<p className="empty-state">Bu aralıkta belirti kaydı yok.</p>}</section>
-  <section className="progress-card"><CardTitle icon={CalendarDays} title="Doz dönemleri"/>{(period?[period]:data.periods).map(p=><p key={p.id} className="period-summary"><b>{p.medication} · {p.dose}{p.amount&&" / "+p.amount}</b><span>{pretty(p.start)} — {p.end?pretty(p.end):"Devam ediyor"}</span><small><Clock3/>{elapsed(p.start,p.end)+1} gün <Syringe/> {data.doses.filter(d=>d.periodId===p.id).length} kullanım</small></p>)}</section>
   <section className="progress-card"><CardTitle icon={History} title="Kullanım kayıtları"/>{usage.length?usage.map(d=><button onClick={()=>select(d)} className="usage-row" key={d.id}><span>{pretty(d.date)} · {d.time.replace(":",".")}</span><span>{d.site}</span><ChevronRight/></button>):<p className="empty-state">Bu aralıkta kullanım kaydı yok.</p>}</section>
   <MetricHistory metric={metric} entries={entries} context={(period?period.medication+" · "+doseOptionLabel(period):"Tüm dönemler")+" · "+(range?range/7+" hafta":"Tüm zamanlar")} close={()=>setMetric(null)} restoreFocus={()=>metricTrigger.current?.focus({preventScroll:true})}/>
  </div>
