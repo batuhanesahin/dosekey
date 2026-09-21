@@ -34,7 +34,7 @@ test("doz kaydı eklenir, detayı açılır ve silinir", async ({ page }) => {
 });
 
 test("günlük kayıt eklenir ve düzenlenir", async ({ page }) => {
-  await page.getByRole("button", { name: "Günlük kayıt ekle" }).click();
+  await page.getByRole("button", { name: "Belirtiler", exact: true }).click();
   const appetite = page.getByRole("group", { name: "Bugün iştahın nasıldı?" });
   const energy = page.getByRole("group", { name: "Bugün enerjin nasıldı?" });
   await appetite.getByRole("button", { name: "4", exact: true }).click();

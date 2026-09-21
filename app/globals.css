@@ -84,3 +84,18 @@ input,textarea,select{font-size:16px!important;max-width:100%}
 .kind-tabs button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border:1px solid var(--line);border-radius:12px;color:var(--text);background:var(--surface);font-weight:600}
 .kind-tabs button svg{width:18px;height:18px}
 .kind-tabs button.active{border-color:transparent;color:#fff;background:var(--btn-from)}
+
+/* Belirtiler: draggable header, independently scrolling form, visible save. */
+.sheet-dialog.symptoms-entry-dialog{display:flex!important;flex-direction:column;gap:0!important;height:var(--sheet-h,40dvh)!important;max-height:calc(100dvh - var(--safe-top) - 16px)!important;min-height:min(280px,calc(100dvh - var(--safe-top) - 16px));overflow:hidden!important;transition:height .2s ease}
+.symptoms-entry-dialog[data-dragging]{transition:none}
+.symptoms-entry-header{position:relative;flex:0 0 auto;touch-action:none;cursor:grab;user-select:none;padding-bottom:14px}
+.symptoms-entry-header h2{font-size:22px;margin:0;padding-right:140px}
+.symptoms-panel-tools{position:absolute;right:0;bottom:8px;display:flex;align-items:center;gap:8px}
+.symptoms-panel-tools>button{min-height:44px;color:var(--blue-ink)}
+.symptoms-panel-tools .sheet-close{position:static;flex:0 0 44px;color:var(--text)}
+.symptoms-entry-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:0 2px 16px;scroll-padding:16px}
+.symptoms-entry-body>details{margin-bottom:16px}
+.symptoms-entry-footer{flex:0 0 auto;border-top:1px solid var(--line);padding-top:12px;background:var(--surface)}
+.symptoms-entry-footer .daily-actions{margin-top:0}
+.symptoms-entry-dialog[data-dragging] .symptoms-entry-header{cursor:grabbing}
+@media(prefers-reduced-motion:reduce){.sheet-dialog.symptoms-entry-dialog{transition:none}}

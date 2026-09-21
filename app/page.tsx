@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { doseOptions, doseOptionKey, doseOptionLabel } from "@/lib/medication-options";
 import { syncDoseReminders } from "@/lib/native-notifications";
 import { syncSystemBars } from "@/lib/system-bars";
+import { useAndroidBack } from "@/lib/android-back";
 
 type Screen="today"|"history"|"progress"|"plan";
 type Dose={id:number;medication:string;ingredient:string;dose:string;amount:string;date:string;time:string;site:string;note:string;createdAt:string;periodId:number};
@@ -54,8 +55,17 @@ export default function Page(){
   const [doseOpen,setDoseOpen]=useState(false),[checkOpen,setCheckOpen]=useState(false),[periodOpen,setPeriodOpen]=useState(false),[settingsOpen,setSettingsOpen]=useState(false);
   const [selectedDose,setSelectedDose]=useState<Dose|null>(null),[selectedDaily,setSelectedDaily]=useState<Daily|null>(null),[periodFilter,setPeriodFilter]=useState("active");
   const [progressTarget,setProgressTarget]=useState<string|null>(null),[editDose,setEditDose]=useState<Dose|null>(null),[editDaily,setEditDaily]=useState<Daily|null>(null);
-  const go=(s:Screen)=>{setProgressTarget(null);setScreen(s);window.scrollTo(0,0)};
-  const goMetric=(id:string)=>{setPeriodFilter("active");setProgressTarget(id);setScreen("progress")};
+  const navigation=useRef<{screen:Screen;filter:string;scroll:number}[]>([]);
+  const go=(s:Screen,filter=periodFilter,target:string|null=null)=>{
+    if(s!==screen)navigation.current.push({screen,filter:periodFilter,scroll:window.scrollY});
+    setPeriodFilter(filter);setProgressTarget(target);setScreen(s);window.scrollTo(0,0);
+  };
+  const goMetric=(id:string)=>go("progress","active",id);
+  useAndroidBack(ready&&data.profile.onboarded&&!previewOnboarding,()=>{
+    const previous=navigation.current.pop();
+    if(previous){setProgressTarget(null);setPeriodFilter(previous.filter);setScreen(previous.screen);requestAnimationFrame(()=>window.scrollTo(0,previous.scroll))}
+    else if(screen!=="today"){setProgressTarget(null);setScreen("today");window.scrollTo(0,0)}
+  });
   useEffect(()=>{if(screen!=="progress"||!progressTarget)return;const timer=setTimeout(()=>{const section=document.getElementById(progressTarget);section?.scrollIntoView({block:"start"});section?.focus({preventScroll:true})},100);return()=>clearTimeout(timer)},[screen,progressTarget]);
   // localStorage yalnızca tarayıcıda var, bu yüzden ilk okuma render sırasında değil
   // bağlanmadan sonra yapılmak zorunda. Kural burada geçerli değil.
@@ -73,10 +83,10 @@ export default function Page(){
   if(!data.profile.onboarded||previewOnboarding)return <Onboarding data={data} setData={setData} preview={previewOnboarding} exitPreview={()=>{window.history.replaceState(null,"",window.location.pathname);setPreviewOnboarding(false)}}/>;
   return <main className="app-shell">
     <div className="phone-surface">
-      {screen==="today"&&<Today data={data} active={active} openDose={()=>setDoseOpen(true)} openCheck={()=>setCheckOpen(true)} openSettings={()=>setSettingsOpen(true)} toggleTheme={()=>setData(d=>({...d,dark:!d.dark}))} go={go} goMetric={goMetric}/>}
+      {screen==="today"&&<Today data={data} active={active} openDose={()=>setDoseOpen(true)} openCheck={()=>setCheckOpen(true)} openSettings={()=>setSettingsOpen(true)} toggleTheme={()=>setData(d=>({...d,dark:!d.dark}))} go={s=>go(s,s==="progress"?"active":periodFilter)} goMetric={goMetric}/>}
       {screen==="history"&&<HistoryScreen data={data} select={setSelectedDose} selectDaily={setSelectedDaily} openDose={()=>setDoseOpen(true)} openCheck={()=>setCheckOpen(true)}/>}
       {screen==="progress"&&<Progress data={data} active={active} filter={periodFilter} setFilter={setPeriodFilter}/>}
-      {screen==="plan"&&<Plan data={data} active={active} add={()=>setPeriodOpen(true)} select={id=>{setPeriodFilter(String(id));go("progress")}} toggleReminder={()=>setData(d=>({...d,profile:{...d.profile,reminders:!d.profile.reminders}}))} setReminderTime={reminderTime=>setProfile({reminderTime})}/>}
+      {screen==="plan"&&<Plan data={data} active={active} add={()=>setPeriodOpen(true)} select={id=>go("progress",id===active.id?"active":String(id))} toggleReminder={()=>setData(d=>({...d,profile:{...d.profile,reminders:!d.profile.reminders}}))} setReminderTime={reminderTime=>setProfile({reminderTime})}/>}
       <BottomNav screen={screen} setScreen={go}/>
     </div>
     <DoseFlow open={doseOpen} close={()=>{setDoseOpen(false);setEditDose(null)}} active={active} periods={data.periods} editing={editDose} save={saveDose}/>
@@ -99,7 +109,7 @@ function Today({data,active,openDose,openCheck,openSettings,toggleTheme,go,goMet
  const days=next?Math.round((new Date(next+"T12:00:00").getTime()-new Date(dateKey()+"T12:00:00").getTime())/86400000):0;
  return <div className="page today-page"><Header action={<div className="header-tools"><button className="circle-btn" aria-label={data.dark?"Açık moda geç":"Koyu moda geç"} onClick={toggleTheme}>{data.dark?<Sun/>:<Moon/>}</button><button className="circle-btn profile-trigger" aria-label="Profilim" onClick={openSettings}><UserRound/></button></div>}/><h1 className="greeting">{greetingFor(data.profile.name)}</h1><p className="page-date">{fullPretty(dateKey())}</p>
   <section className="active-card"><div><Status/><h2>{active.medication}</h2><p>{active.dose}{active.amount&&" / "+active.amount}</p></div><button aria-label="İlerlemeyi aç" onClick={()=>go("progress")} className="chart-orbit"><BarChart3/></button><button className="next-dose" onClick={()=>go("plan")}><CalendarDays/><span><b>{!next?"Plansız kullanım":days===0?"Bugün doz günün":days>0?`Sonraki dozuna ${days} gün var`:"Planlanan tarih geçti"}</b><small>{next?pretty(next)+" · "+active.time.replace(":","."):"Kayıtlarını istediğin zaman ekleyebilirsin"}</small></span><ChevronRight/></button></section>
-  <div className="primary-actions"><button className="primary" onClick={openDose}><Check/>Dozumu kullandım</button><button onClick={openCheck}><FileText/>Günlük kayıt ekle</button></div>
+  <div className="primary-actions"><button className="primary" onClick={openDose}><Check/>Dozumu kullandım</button><button onClick={openCheck}><FileText/>Belirtiler</button></div>
   <div className="metric-grid"><Metric icon={Activity} label="İştah · Ort." value={dailyAverage(data.dailies,"appetite")+"/5"} onClick={()=>goMetric("appetite")}/><Metric icon={Zap} label="Enerji · Ort." value={dailyAverage(data.dailies,"energy")+"/5"} violet onClick={()=>goMetric("energy")}/><Metric icon={Scale} label="Kilo" value={(lastWeighed?.weight?.toLocaleString("tr-TR")??"—")+" kg"} teal onClick={()=>goMetric("weight")}/></div>
   {last&&<button className="last-use" onClick={()=>go("history")}><span className="icon-disc"><Clock3/></span><span><b>Son kullanım</b><strong>{pretty(last.date)} · {last.time.replace(":",".")}</strong><small>{last.site}</small></span><ChevronRight/></button>}
  </div>
@@ -128,7 +138,10 @@ function Progress({data,active,filter,setFilter}:{data:Store;active:Period;filte
  const [range,setRange]=useState(28),[metric,setMetric]=useState<ProgressMetric|null>(null);
  const metricTrigger=useRef<HTMLButtonElement|null>(null);
  const openMetric=(value:ProgressMetric,event:React.MouseEvent<HTMLButtonElement>)=>{metricTrigger.current=event.currentTarget;setMetric(value)};
- const period=filter==="all"?null:data.periods.find(p=>p.id===(filter==="active"?active.id:Number(filter)));
+ const selectedPeriod=data.periods.find(p=>p.id===Number(filter));
+ const selectedFilter=filter==="all"?"all":filter==="active"||selectedPeriod?.id===active.id||!selectedPeriod?"active":filter;
+ const period=selectedFilter==="all"?null:selectedFilter==="active"?active:selectedPeriod;
+ const periodLabel=period?doseOptionLabel(period)+(period.id===active.id?" · Aktif dönem":""):"Tüm dönemler";
  const from=range?addDays(dateKey(),-range+1):"0000-01-01";
  const entries=data.dailies.filter(d=>d.date>=from&&d.date<=dateKey()&&(!period||(d.date>=period.start&&(!period.end||d.date<=period.end)))).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
  const weights=entries.filter(d=>d.weight!==undefined).map(d=>({date:pretty(d.date).replace(/ \d{4}$/, ""),value:d.weight!}));
@@ -137,7 +150,7 @@ function Progress({data,active,filter,setFilter}:{data:Store;active:Period;filte
  // Tek ölçümden "0 kg değişim" çıkarmak anlamsız; en az iki ölçüm gerekiyor.
  const weightChange=weights.length>1?weights.at(-1)!.value-weights[0].value:null;
  const symptoms=Array.from(new Set(entries.flatMap(d=>d.symptoms).filter(s=>s!=="Yok")));
- return <div className="page progress-page"><Header title="İlerleme"/><Select value={filter} onValueChange={setFilter}><SelectTrigger className="period-select"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="active">{active.dose} / {active.amount} · Aktif dönem</SelectItem>{data.periods.filter(p=>!p.active).map(p=><SelectItem value={String(p.id)} key={p.id}>{p.dose} / {p.amount}</SelectItem>)}<SelectItem value="all">Tüm dönemler</SelectItem></SelectContent></Select>
+ return <div className="page progress-page"><Header title="İlerleme"/><Select value={selectedFilter} onValueChange={setFilter}><SelectTrigger aria-label="Doz dönemi" className="period-select"><SelectValue>{periodLabel}</SelectValue></SelectTrigger><SelectContent><SelectItem value="active">{doseOptionLabel(active)} · Aktif dönem</SelectItem>{data.periods.filter(p=>!p.active).map(p=><SelectItem value={String(p.id)} key={p.id}>{doseOptionLabel(p)}</SelectItem>)}<SelectItem value="all">Tüm dönemler</SelectItem></SelectContent></Select>
   <div className="range-tabs">{[[28,"4 hafta"],[56,"8 hafta"],[0,"Tümü"]].map(([n,label])=><button key={n} className={range===n?"active":""} onClick={()=>setRange(Number(n))}>{label}</button>)}</div>
   <section id="weight" tabIndex={-1} className="progress-card metric-history-card"><button className="metric-history-trigger" aria-label="Kilo kayıtlarını gör" aria-haspopup="dialog" onClick={e=>openMetric("weight",e)}/><CardTitle icon={Scale} title="Kilo"/><ChevronRight className="metric-history-chevron" aria-hidden="true"/>{weights.length?<><div className="weight-head"><div><b>{weights[0].value.toLocaleString("tr-TR")} kg</b><small>{weights[0].date}</small></div><div>{weightChange!==null&&<strong className={weightChange>0?"change-up":weightChange<0?"change-down":""}>{(weightChange>0?"+":"")+weightChange.toLocaleString("tr-TR",{maximumFractionDigits:1})} kg değişim</strong>}<b>{weights.at(-1)!.value.toLocaleString("tr-TR")} kg</b><small>{weights.at(-1)!.date}</small></div></div><BigChart points={weights}/></>:<p className="empty-state">Bu aralıkta kilo kaydı yok.</p>}</section>
   <div className="mini-grid"><MiniCard onOpen={e=>openMetric("appetite",e)} id="appetite" title="İştah" value={"Ortalama "+rangeAverage("appetite")+" / 5"} icon={Activity} data={entries.map((d,i)=>({x:i,v:d.appetite}))}/><MiniCard onOpen={e=>openMetric("energy",e)} id="energy" title="Enerji" value={"Ortalama "+rangeAverage("energy")+" / 5"} icon={Zap} data={entries.map((d,i)=>({x:i,v:d.energy}))}/></div>
@@ -171,7 +184,9 @@ function useSheetDrag(close:()=>void){
   if(h<vh*.22){reset();close();return}
   setHeight(h>vh*.6?vh*.88:null);
  };
- return {ref,reset,dragging,style:height===null?undefined:({"--sheet-h":height+"px"} as React.CSSProperties),
+ const expanded=height!==null&&height>window.innerHeight*.6;
+ const toggle=()=>setHeight(expanded?null:window.innerHeight*.88);
+ return {ref,reset,dragging,toggle,expanded,style:height===null?undefined:({"--sheet-h":height+"px"} as React.CSSProperties),
   dragProps:{onPointerDown,onPointerMove,onPointerUp,onPointerCancel:onPointerUp}};
 }
 function MetricHistory({metric,entries,context,close,restoreFocus}:{metric:ProgressMetric|null;entries:Daily[];context:string;close:()=>void;restoreFocus:()=>void}){
@@ -198,13 +213,14 @@ function Plan({data,active,add,toggleReminder,setReminderTime,select}:{data:Stor
 
 function Onboarding({data,setData,preview=false,exitPreview}:{data:Store;setData:React.Dispatch<React.SetStateAction<Store>>;preview?:boolean;exitPreview?:()=>void}){
  const [step,setStep]=useState(0),[name,setName]=useState(data.profile.name),[gender,setGender]=useState(data.profile.gender??""),[birthDate,setBirthDate]=useState(data.profile.birthDate??""),[med,setMed]=useState("Mounjaro"),[dose,setDose]=useState(""),[amount,setAmount]=useState(""),[interval,setInterval]=useState("Her 7 günde bir"),[startDate,setStartDate]=useState(dateKey()),[reminders,setReminders]=useState(false),[reminderTime,setReminderTime]=useState("09:00"),[search,setSearch]=useState(""),[customDays,setCustomDays]=useState("7");
+ useAndroidBack(true,()=>{if(step>0)setStep(step-1);else if(preview)exitPreview?.()});
  const finish=()=>{if(preview){exitPreview?.();return}const m=medicationOptions.find(x=>x.name===med);setData(d=>({...d,profile:{...d.profile,name:name.trim(),gender,birthDate,reminders,reminderTime,onboarded:true},periods:[{...d.periods[0],id:Date.now(),medication:med,ingredient:m?.ingredient||"",dose:dose.trim(),amount:med==="Rybelsus"?"":amount.trim(),interval:interval==="Her N günde bir"?`Her ${Number(customDays)} günde bir`:interval,start:startDate,end:undefined,active:true}]}))};
  return <main className="onboarding"><div className="onboard-phone"><Header back={step?()=>setStep(step-1):undefined}/><div className="dots">{[0,1,2,3,4,5].map(n=><i key={n} className={n===step?"active":""}/>)}</div>
   {step===0&&<div className="onboard-content"><h1>DoseKey’e hoş geldin</h1><p>Seni biraz tanıyalım.</p><ProfileFields name={name} gender={gender} birthDate={birthDate} setName={setName} setGender={setGender} setBirthDate={setBirthDate}/></div>}
   {step===1&&<div className="onboard-content"><h1>Hangi ilacı takip edeceksin?</h1><p>Takip edeceğin ilacı listeden seç.</p><Input placeholder="İlaç ara" value={search} onChange={e=>setSearch(e.target.value)} className="control"/><div className="choice-list">{medicationOptions.filter(m=>m.name.toLocaleLowerCase("tr-TR").includes(search.toLocaleLowerCase("tr-TR"))).map(m=><button key={m.name} className={med===m.name?"selected":""} onClick={()=>{setMed(m.name);setDose("");setAmount("")}}><span className="pill-disc"><Pill/></span><span><b>{m.name}</b><small>{m.ingredient}</small></span><i>{med===m.name&&<Check/>}</i></button>)}</div></div>}
   {step===2&&<div className="onboard-content"><h1>Kullandığın dozu seç</h1><p>{med} · Kendi ürünündeki değeri seç.</p><DosePicker med={med} dose={dose} amount={amount} onChange={(d,a)=>{setDose(d);setAmount(a)}}/></div>}
   {step===3&&<div className="onboard-content"><h1>Ne sıklıkla kullanıyorsun?</h1><p>Kullanım aralığını sen belirlersin.</p><div className="radio-list">{["Her gün","Her 7 günde bir","Her N günde bir","Plansız kullanım"].map(x=><button className={interval===x?"selected":""} key={x} onClick={()=>setInterval(x)}><span>{x}</span><i>{interval===x&&<Check/>}</i></button>)}</div>{interval==="Her N günde bir"&&<Field label="Kaç günde bir?"><Input type="number" min="1" max="365" value={customDays} onChange={e=>setCustomDays(e.target.value)} className="control"/></Field>}</div>}
-  {step===4&&<div className="onboard-content"><h1>İlk kullanım günün ne zaman?</h1><p>İlaca başladığın veya başlayacağın tarihi seç.</p><Field label="İlk kullanım tarihi"><Input type="date" value={startDate} onInput={e=>setStartDate((e.target as HTMLInputElement).value)} className="control"/></Field><p className="info-note">Sonraki doz tarihi bu gün ve seçtiğin kullanım aralığına göre hesaplanır.</p></div>}
+  {step===4&&<div className="onboard-content"><h1>İlk kullanım günün ne zaman?</h1><p>İlaca başladığın veya başlayacağın tarihi seç.</p><Field label="İlk kullanım tarihi"><Input type="date" value={startDate} onInput={e=>setStartDate((e.target as HTMLInputElement).value)} className="control"/></Field><p className="info-note">Sonraki doz tarihi seçtiğin gün ve kullanım aralığına göre hesaplanır.</p></div>}
   {step===5&&<div className="onboard-content"><h1>Hatırlatma ister misin?</h1><p>Telefon uygulaması doz gününde seçtiğin saatte sana hatırlatabilir.</p><button className="reminder-option" onClick={()=>setReminders(!reminders)}><Bell/><span>Doz günü bildirimi</span><span className={"switch "+(reminders?"on":"")}><i/></span></button>{reminders&&<Field label="Bildirim saati"><Input aria-label="Bildirim saati" type="time" value={reminderTime} onInput={event=>setReminderTime((event.target as HTMLInputElement).value)} className="control"/></Field>}<div className="notification-preview"><span className="notification-logo" aria-hidden="true">D</span><span className="notification-copy"><b>Bugün doz günün</b><small>DoseKey · {reminderTime.replace(":",".")}</small></span></div></div>}
   <div className="onboard-footer"><Button disabled={(step===0&&(!name.trim()||!gender||!validBirthDate(birthDate)))||(step===2&&!dose.trim())||(step===3&&interval==="Her N günde bir"&&(!Number.isInteger(Number(customDays))||Number(customDays)<1||Number(customDays)>365))||(step===4&&!validDate(startDate))} onClick={()=>step===5?finish():setStep(step+1)} className="primary wide">{step===5?"Planımı oluştur":"Devam"}</Button></div>
  </div></main>
@@ -222,17 +238,22 @@ function DoseFlowBody({close,active,periods,editing,save}:{close:()=>void;active
 }
 
 function DailyFlow({open,close,editing,save}:{open:boolean;close:()=>void;editing:Daily|null;save:(d:Omit<Daily,"id"|"createdAt">)=>void}){
- return <Dialog open={open} onOpenChange={o=>!o&&close()}><DialogContent showCloseButton={false} className="sheet-dialog" aria-describedby={undefined}>{open&&<DailyFlowBody close={close} editing={editing} save={save}/>}</DialogContent></Dialog>
+ const {ref,reset,dragging,style,dragProps,toggle,expanded}=useSheetDrag(close);
+ const closeSheet=()=>{reset();close()};
+ return <Dialog open={open} onOpenChange={o=>!o&&closeSheet()}><DialogContent ref={ref} style={style} data-dragging={dragging||undefined} showCloseButton={false} className="sheet-dialog symptoms-entry-dialog" aria-describedby={undefined}>
+  <div className="symptoms-entry-header" {...dragProps}><div className="sheet-handle"/><DialogTitle>{editing?"Belirtileri düzenle":"Belirtiler"}</DialogTitle><div className="symptoms-panel-tools"><button type="button" onClick={toggle} aria-label={expanded?"Paneli küçült":"Paneli büyüt"}>{expanded?"Küçült":"Büyüt"}</button><button type="button" className="sheet-close" aria-label="Kapat" onClick={closeSheet}><X/></button></div></div>
+  {open&&<DailyFlowBody close={closeSheet} editing={editing} save={save}/>}
+ </DialogContent></Dialog>
 }
 function DailyFlowBody({close,editing,save}:{close:()=>void;editing:Daily|null;save:(d:Omit<Daily,"id"|"createdAt">)=>void}){
  const [appetite,setAppetite]=useState([editing?.appetite??2]),[energy,setEnergy]=useState([editing?.energy??3]),[symptoms,setSymptoms]=useState<string[]>(editing?.symptoms??[]),[weight,setWeight]=useState(editing?.weight?.toString()??""),[dailyDate,setDailyDate]=useState(editing?.date??dateKey()),[error,setError]=useState("");
  const finish=()=>{if(!dailyDate||dailyDate>dateKey()||(weight.trim()&&(!Number.isFinite(Number(weight.replace(",",".")))||Number(weight.replace(",","."))<=0))){setError("Tarih ve kilo alanlarını kontrol et.");return}save({date:dailyDate,appetite:appetite[0],energy:energy[0],symptoms,weight:Number(weight.replace(",","."))||undefined});close()};
- return <><div className="sheet-handle"/><button className="sheet-close" aria-label="Kapat" onClick={close}><X/></button><DialogTitle>{editing?"Günlük kaydı düzenle":"Günlük kayıt"}</DialogTitle><details><summary>{dailyDate===dateKey()?"Bugün":pretty(dailyDate)} · Tarihi değiştir</summary><Field label="Kayıt tarihi"><Input className="control" type="date" max={dateKey()} value={dailyDate} onInput={e=>setDailyDate((e.target as HTMLInputElement).value)}/></Field></details>
+ return <><div className="symptoms-entry-body"><details><summary>{dailyDate===dateKey()?"Bugün":pretty(dailyDate)} · Tarihi değiştir</summary><Field label="Kayıt tarihi"><Input className="control" type="date" max={dateKey()} value={dailyDate} onInput={e=>setDailyDate((e.target as HTMLInputElement).value)}/></Field></details>
   <SliderStep title="Bugün iştahın nasıldı?" value={appetite} setValue={setAppetite}/>
   <SliderStep title="Bugün enerjin nasıldı?" value={energy} setValue={setEnergy}/>
   <div className="daily-step"><h3>Bugün bir belirti oldu mu?</h3><div className="symptom-grid">{["Bulantı","Kabızlık","İshal","Reflü","Baş ağrısı","Yok"].map(x=><button key={x} className={symptoms.includes(x)?"active":""} onClick={()=>setSymptoms(x==="Yok"?["Yok"]:symptoms.includes(x)?symptoms.filter(s=>s!==x):[...symptoms.filter(s=>s!=="Yok"),x])}>{x}</button>)}</div></div>
   <div className="daily-step"><h3>Bugünkü kilon</h3><div className="weight-input"><Input aria-label="Bugünkü kilon" value={weight} onChange={e=>setWeight(e.target.value)} inputMode="decimal"/><span>kg</span></div><button className="skip-link" onClick={()=>setWeight("")}>Atla</button></div>
-  {error&&<p role="alert" className="form-error">{error}</p>}<div className="daily-actions"><Button className="primary wide" onClick={finish}>{editing?"Değişiklikleri kaydet":"Kaydı tamamla"}</Button></div>
+  </div><div className="symptoms-entry-footer">{error&&<p role="alert" className="form-error">{error}</p>}<div className="daily-actions"><Button className="primary wide" onClick={finish}>{editing?"Değişiklikleri kaydet":"Kaydı tamamla"}</Button></div></div>
  </>
 }
 function SliderStep({title,value,setValue}:{title:string;value:number[];setValue:(v:number[])=>void}){return <div className="daily-step"><h3>{title}</h3><div className="number-choices" role="group" aria-label={title}>{[1,2,3,4,5].map(n=><button onClick={()=>setValue([n])} className={value[0]===n?"active":""} key={n}>{n}</button>)}</div><div className="range-labels"><span>Çok düşük</span><span>Çok yüksek</span></div></div>}
