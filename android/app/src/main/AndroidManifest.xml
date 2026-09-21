@@ -39,5 +39,11 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
+
+    <!-- Doz hatirlatmasi secilen saatte tetiklenmeli. Bu izinler olmadan Android
+         alarmi yaklasik zamanli yapar ve uyku modunda saatlerce erteleyebilir.
+         USE_EXACT_ALARM Android 13+ icin otomatik verilir; SCHEDULE_EXACT_ALARM
+         daha eski surumlerde kullanilir. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 </manifest>

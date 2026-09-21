@@ -44,7 +44,8 @@ test("günlük kayıt eklenir ve düzenlenir", async ({ page }) => {
   await page.getByRole("button", { name: "Kaydı tamamla" }).click();
 
   await page.getByRole("button", { name: "Geçmiş", exact: true }).click();
-  await page.getByRole("button", { name: /Günlük kayıt/ }).click();
+  await page.getByRole("group", { name: "Kayıt türü" }).getByRole("button", { name: "Günlük", exact: true }).click();
+  await page.getByRole("button", { name: /^Günlük kayıt/ }).click();
   await expect(page.getByRole("heading", { name: "Günlük kayıt detayı", level: 1 })).toBeVisible();
   await expect(page.getByRole("dialog").getByText("101,5 kg", { exact: true })).toBeVisible();
 
@@ -52,7 +53,7 @@ test("günlük kayıt eklenir ve düzenlenir", async ({ page }) => {
   await appetite.getByRole("button", { name: "5", exact: true }).click();
   await page.getByRole("button", { name: "Değişiklikleri kaydet" }).click();
 
-  await page.getByRole("button", { name: /Günlük kayıt/ }).click();
+  await page.getByRole("button", { name: /^Günlük kayıt/ }).click();
   await expect(page.getByText("5 / 5").first()).toBeVisible();
 });
 
